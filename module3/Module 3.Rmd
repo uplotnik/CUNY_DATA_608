@@ -1,0 +1,310 @@
+---
+title: "Module 3 Data 608"
+author: "Uliana Plotnikova"
+date: "March 2, 2021"
+output: 
+    prettydoc::html_pretty:
+    theme: lumen
+    highlight: github
+    math: katex
+    code_folding: hide
+runtime: shiny
+---
+
+
+#### I have provided you with data about mortality from all 50 states and the District of Columbia.
+
+#### Please access it athttps://github.com/charleyferrari/CUNY_DATA608/tree/master/module3/data 
+
+
+
+
+
+```{r, echo=FALSE}
+
+suppressWarnings ({library(shiny)})
+suppressWarnings ({library(rsconnect)})
+suppressWarnings ({library(ggplot2)})
+suppressWarnings ({library(dplyr)})
+suppressWarnings ({library(plotly)})
+suppressWarnings ({library(kableExtra)})
+suppressWarnings({library(tidyverse)})
+suppressWarnings({library(gganimate)})
+suppressWarnings({library(shinyWidgets)})
+
+```
+
+```{r}
+
+
+rsconnect::setAccountInfo(name='ulianap',
+			  token='DD8912CC9FB2ABD5AB2FEA9DD36E975F',
+			  secret='vWsS+aLUcSVQsQUzVDDfaw8ksOSIDqMNc7VG3EHK')
+
+
+```
+
+
+```{r}
+# load the dataset in R and review
+df <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module3/data/cleaned-cdc-mortality-1999-2010-2.csv")
+kable(head(df,5))
+```
+```{r}
+summary(df)
+```
+
+
+
+```{r}
+# Mortality Causes
+causes <- unique(df$ICD.Chapter)
+causes
+```
+
+
+
+
+####  Ave, Min, Max Crude rate for each state
+
+```{r}
+statedeath<- df %>%
+    group_by(State) %>%
+    summarise(Avg_Rate = mean(Crude.Rate), 
+              Min_Rate = min(Crude.Rate),
+              Max_Rate = max(Crude.Rate)) %>%
+              
+  arrange(State)
+kable(head(statedeath,10))
+```
+
+
+#### Question 1: 
+#### As a researcher, you frequently compare mortality rates from particular causes across different States. You need a visualization that will let you see (for 2010 only) the crude mortality rate, across all States, from one cause (for example, Neoplasms, which are effectively cancers). Create a visualization that allows you to rank States by crude mortalityfor each cause of death.
+
+
+
+#### Let's explore Neoplasms
+
+
+
+```{r}
+icd<-filter(df, df$ICD.Chapter== "Neoplasms")
+kable(head(icd))
+```
+
+
+
+```{r}
+p <- ggplot(
+  icd, 
+  aes(x = Crude.Rate, y=Deaths,  colour = State)
+  ) +
+  geom_point(show.legend = FALSE, alpha = 0.9) +
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10() +
+  labs(x = "Crude.Rate", y = "Deaths")
+```
+
+
+
+```{r}
+p + transition_time(Year)+
+  labs(title = "Year: {frame_time}")+
+    shadow_mark(alpha = 0.3, size = 0.9)
+```
+
+
+
+
+
+```{r}
+p <- ggplot(
+  icd,
+  aes(Year, Crude.Rate, group = ICD.Chapter, color = factor(ICD.Chapter))
+  ) + geom_line() +
+  scale_color_viridis_d() +
+  labs(x = "Year", y = "Crude.Rate") +
+  theme(legend.position = "top")
+```
+
+
+```{r}
+p + geom_point(aes(group = seq_along(Year))) +
+  transition_reveal(Year)
+```
+
+
+#### Now let's take a look at 2010
+
+```{r}
+
+year<-filter(icd, icd$Year == "2010")%>% arrange(Crude.Rate)
+kable(tail((year),10))
+```
+
+
+
+
+
+```{r}
+ggplot(aes(x =  reorder(State,-Crude.Rate), y = Crude.Rate), data = year) + 
+  geom_bar(stat = 'identity',width=0.7, color="#1F3552", fill="darkgreen", 
+           position=position_dodge()) + coord_flip()  +
+  ylab(' Crude Rate') +
+  xlab(' State') +
+  ggtitle('Crude Rate by State') +
+  geom_text(aes(label=Crude.Rate),
+            size=3,
+            hjust=-1,
+            color="black")+
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 65, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+ui <- fluidPage( 
+     setBackgroundColor(color = c("#F7FBFF", "#2171B5"),
+    gradient = "linear",
+    direction = "bottom"),
+  titlePanel('State Moratlity Rate by Cause'),
+  sidebarPanel(selectInput('Cause', 'Cause', unique(df$ICD.Chapter),
+                selected='Neoplasms')),
+  mainPanel(htmlOutput(outputId = 'selection'),
+            plotOutput('plot1', height="auto"),
+            h6("The Crude Mortality Rate across all States"))
+           )
+
+```
+
+
+
+```{r}
+server <- shinyServer(function(input, output, session) {
+  selectedData <- reactive({
+    df %>% filter(ICD.Chapter == input$Cause & Year == 2010 )
+  })
+
+output$selection <- renderText({
+    paste('<b> Crude rate for: </b>', input$Cause)
+  })
+  
+  output$plot1 <- renderPlot({
+    
+    ggplot(selectedData(), aes(x=reorder(State, -Crude.Rate), y=Crude.Rate)) +
+      geom_col(fill = "darkgreen") +
+      coord_flip() +
+      geom_text(aes(label=Crude.Rate),
+                size=3,
+                hjust=-0.2,
+                color="darkgreen") +
+      xlab("State") +
+      ylab("Crude Rate") +
+      theme(panel.background = element_blank())
+  }, height = function() {
+    session$clientData$output_plot1_width}
+  )
+})
+
+shinyApp(ui = ui, server = server)
+```
+
+
+
+#### Question 2
+#### Often you are asked whether particular States are improving their mortality rates (per cause)faster than, or slower than, the national average. Create a visualization that lets your clientssee this for themselves for one cause of death at the time. Keep in mind that the nationalaverage should be weighted by the national population.
+
+
+```{r}
+
+each_state <- df %>% select(ICD.Chapter, Year, Crude.Rate, State)
+```
+
+
+
+```{r}
+
+nation<- df %>% select(ICD.Chapter, Year, State, Deaths, Population, Crude.Rate) %>%  mutate(Crude.Rate = round((sum(Deaths) / sum(Population)) * 10^5, 1))
+```
+
+
+
+
+```{r}
+nation_ave <- nation %>%
+  select(ICD.Chapter, Year, Crude.Rate, State) %>%
+  mutate(State = "National_Ave") %>%
+  group_by(ICD.Chapter, Year)
+head (nation_ave,10)
+```
+
+
+
+
+
+
+
+```{r}
+total <- union_all(each_state, nation_ave)
+```
+
+
+
+
+
+
+```{r}
+ui <- fluidPage(
+    sidebarPanel(
+    selectInput('State', 'State', unique(total$State), selected='NY'),
+    selectInput('ICD.Chapter', 'Cause', unique(total$ICD.Chapter), selected='Neoplasms')
+  ),
+   setBackgroundColor(color = c("#F7FBFF", "#2171B5"),
+    gradient = "linear",
+    direction = "bottom"),
+   titlePanel("State Mortality Rate VS National Average"),
+  mainPanel(width=10,
+    plotlyOutput('plot1')
+  )
+)
+
+server <- function(input, output, session) {
+  
+  nationalData <- reactive({
+    nation_ave %>%
+      filter(ICD.Chapter == input$ICD.Chapter)
+  })
+  
+  statedata <- reactive({
+    df <- total %>%
+      filter(State == input$State, ICD.Chapter == input$ICD.Chapter)
+  })
+  
+  combined  <- reactive({
+    merge(x = nationalData(), y = statedata(), all = TRUE)
+  })
+  
+  output$plot1 <- renderPlotly({
+    
+    df <- total %>%
+      filter(State == input$State, ICD.Chapter == input$ICD.Chapter)
+    
+    plot_ly(combined(), x = ~Year, y = ~Crude.Rate, color = ~State, type='scatter',
+            mode = 'markers+lines', line = list(color = '#17BECF'))
+  })
+  
+}
+
+shinyApp(ui,server)
+```
+
