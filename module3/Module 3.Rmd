@@ -34,15 +34,7 @@ suppressWarnings({library(shinyWidgets)})
 
 ```
 
-```{r}
 
-
-rsconnect::setAccountInfo(name='ulianap',
-			  token='DD8912CC9FB2ABD5AB2FEA9DD36E975F',
-			  secret='vWsS+aLUcSVQsQUzVDDfaw8ksOSIDqMNc7VG3EHK')
-
-
-```
 
 
 ```{r}
