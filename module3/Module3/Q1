@@ -1,0 +1,53 @@
+
+library(dplyr)
+library(shiny)
+library(ggplot2)
+library(rsconnect)
+
+# load the dataset in R and review
+df <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module3/data/cleaned-cdc-mortality-1999-2010-2.csv")
+
+# UI
+
+ui <- fluidPage( 
+     setBackgroundColor(color = c("#F7FBFF", "#2171B5"),
+    gradient = "linear",
+    direction = "bottom"),
+  titlePanel('State Moratlity Rate by Cause'),
+  sidebarPanel(selectInput('Cause', 'Cause', unique(df$ICD.Chapter),
+                selected='Neoplasms')),
+  mainPanel(htmlOutput(outputId = 'selection'),
+            plotOutput('plot1', height="auto"),
+            h6("The Crude Mortality Rate across all States"))
+           )
+# Define server function required to create the scatterplot
+
+server <- shinyServer(function(input, output, session) {
+  selectedData <- reactive({
+    df %>% filter(ICD.Chapter == input$Cause & Year == 2010 )
+  })
+
+output$selection <- renderText({
+    paste('<b> Crude rate for: </b>', input$Cause)
+  })
+  
+  output$plot1 <- renderPlot({
+    
+    ggplot(selectedData(), aes(x=reorder(State, -Crude.Rate), y=Crude.Rate)) +
+      geom_col(fill = "darkgreen") +
+      coord_flip() +
+      geom_text(aes(label=Crude.Rate),
+                size=3,
+                hjust=-0.2,
+                color="darkgreen") +
+      xlab("State") +
+      ylab("Crude Rate") +
+      theme(panel.background = element_blank())
+  }, height = function() {
+    session$clientData$output_plot1_width}
+  )
+})
+
+# Create a Shiny app object
+
+shinyApp(ui = ui, server = server)
