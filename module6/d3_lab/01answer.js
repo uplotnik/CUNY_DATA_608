@@ -6,23 +6,19 @@ d3.csv(''https://github.com/uplotnik/CUNY_DATA_608/blob/master/module6/d3_lab/ue
     
     const xScale = d3.scaleLinear()
         .domain(d3.extent(data, d => +d.index))
-        .range([1190, 25]);
+        .range([20, 1180]);
     
     const yScale = d3.scaleLinear()
         .domain(d3.extent(data, d => +d.Agriculture))
-        .range([570, 18]);
+        .range([580, 20]);
     
-    let line10 = d3.line()
-        .x(d => xScale(d.index))
-        .y(d => yScale(d.Agriculture));
+    let line = d3.line()
+        .x(d => xScale(+d.index))
+        .y(d => yScale(+d.Agriculture));
     
 d3.select('#answer1')
-        // append more elements here
-      .selectAll('path')
-        .data(data)
-        .enter()        
         .append('path')
-        .attr('d', line10(data))
+        .attr('d', line(data))
         .attr("stroke-width", 1.8)
-        .attr("stroke", "darkblue")
+        .attr("stroke", "darkblue");
 });
